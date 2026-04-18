@@ -145,8 +145,33 @@
         </div>
     </div>
 
-    <script>
-        // --- 🌊 ระบบ Water Canvas Animation (โทนสีทองสุดหรู) ---
+    <script type="module">
+        // --- 1. โหลด Firebase SDK ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // --- 2. ใส่ Firebase Config อันใหม่ (mombaby-check) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyD9SnhLqRijMJIsNpStmsPSWrXsiFxn-gs",
+            authDomain: "mombaby-check.firebaseapp.com",
+            projectId: "mombaby-check",
+            storageBucket: "mombaby-check.firebasestorage.app",
+            messagingSenderId: "948432082279",
+            appId: "1:948432082279:web:61b1dfd215c02582f6cbc2",
+            measurementId: "G-MX9SD1GC7P"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- 3. ตรวจสอบสิทธิ์การเข้าใช้งาน (Gatekeeper) ---
+        const currentUser = JSON.parse(localStorage.getItem('active_user'));
+        const now = new Date().getTime();
+        if (!currentUser || now > currentUser.expireAt) {
+            window.location.replace('https://hy-c9.github.io/Smart-Ai-Login/');
+        }
+
+        // --- 4. 🌊 ระบบ Water Canvas Animation (คงของเดิมไว้ 100%) ---
         const canvas = document.getElementById('water-canvas');
         const ctx = canvas.getContext('2d');
         let width, height;
@@ -192,44 +217,13 @@
             requestAnimationFrame(animateWater);
         }
         animateWater();
-        // ----------------------------------------
 
-        // ระบบ API ดึงข้อมูล
-        const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbxun4zYaMJfijpqhGQxc6xDZS2_6HSZ2hWoVY7wVD-qwSd_pbdtdsvrYOKXugXh0GN4/exec";
-        let db = [];
+        // --- 5. ฟังก์ชัน UI ควบคุม Modal ---
+        // (ต้องใช้ window. นำหน้า เพื่อให้ HTML ปุ่ม onclick เรียกใช้ได้)
+        window.showPop = function(id) { document.getElementById(id).classList.replace('hidden', 'flex'); }
+        window.hideAll = function() { document.querySelectorAll('.fixed').forEach(el => el.classList.replace('flex', 'hidden')); }
 
-        async function loadData() {
-            try {
-                const response = await fetch(SHEET_API_URL);
-                const data = await response.json();
-                if(Array.isArray(data)) db = data;
-            } catch (e) { console.error("Load Error:", e); }
-        }
-
-        function checkShop() {
-            const input = document.getElementById('shopInput').value.trim();
-            if(!input) return alert("กรุณากรอกชื่อร้านค้า");
-            if(db.length === 0) return alert("ระบบกำลังโหลดข้อมูลหรือยังไม่มีข้อมูลในระบบ กรุณารอสักครู่...");
-
-            const shop = db.find(s => (s.name || "").toString().trim().toLowerCase() === input.toLowerCase());
-            if(!shop) return showPop('notFoundOverlay'); 
-
-            if(shop.status === 'pass') {
-                document.getElementById('pShop').innerText = shop.name;
-                document.getElementById('pOwner').innerText = shop.owner;
-                document.getElementById('pAddr').innerText = shop.addr;
-                
-                document.getElementById('blurSec').classList.add('blur-zone');
-                document.getElementById('unlockBtn').classList.remove('hidden');
-                
-                showPop('passOverlay');
-            } else {
-                document.getElementById('fShop').innerText = `"${shop.name}"`;
-                showPop('failOverlay'); 
-            }
-        }
-
-        function askUnlock() {
+        window.askUnlock = function() {
             const pass = prompt("กรุณากรอกรหัสธุรกรรม เพื่อเปิดดูข้อมูลนี้:");
             if(pass === "123123123") {
                 document.getElementById('blurSec').classList.remove('blur-zone');
@@ -239,15 +233,43 @@
             }
         }
 
-        function showPop(id) { document.getElementById(id).classList.replace('hidden', 'flex'); }
-        function hideAll() { document.querySelectorAll('.fixed').forEach(el => el.classList.replace('flex', 'hidden')); }
-        
-        // 🟢 1. โหลดข้อมูลครั้งแรก
-        loadData();
+        // --- 6. ระบบค้นหาด้วย Firebase ---
+        window.checkShop = async function() {
+            const input = document.getElementById('shopInput').value.trim();
+            if(!input) return alert("กรุณากรอกชื่อร้านค้า");
 
-        // 🟢 2. ให้ดึงข้อมูลใหม่แบบเงียบๆ ทุก 2 วินาที (Real-time update)
-        setInterval(loadData, 2000);
+            // ค้นหาใน Firebase คอลเลกชัน "address_mom_baby" ที่ Name ตรงกับ input
+            try {
+                const q = query(collection(db, "address_mom_baby"), where("Name", "==", input));
+                const querySnapshot = await getDocs(q);
 
+                if (querySnapshot.empty) {
+                    return window.showPop('notFoundOverlay'); 
+                }
+
+                // ดึงข้อมูลร้านแรกที่เจอ
+                const shop = querySnapshot.docs[0].data();
+
+                // เช็ค Status (ถ้าเป็น "ผ่าน" หรือ "ปกติ" ถือว่าผ่าน)
+                if(shop.Status === 'ผ่าน' || shop.Status === 'ปกติ') {
+                    document.getElementById('pShop').innerText = shop.Name || '-';
+                    document.getElementById('pOwner').innerText = shop.Owner || '-';
+                    document.getElementById('pAddr').innerText = shop.Address || '-';
+                    
+                    document.getElementById('blurSec').classList.add('blur-zone');
+                    document.getElementById('unlockBtn').classList.remove('hidden');
+                    
+                    window.showPop('passOverlay');
+                } else {
+                    document.getElementById('fShop').innerText = `"${shop.Name || input}"`;
+                    window.showPop('failOverlay'); 
+                }
+
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาดในการดึงข้อมูล:", error);
+                alert("ไม่สามารถตรวจสอบข้อมูลได้ในขณะนี้ กรุณาลองใหม่");
+            }
+        }
     </script>
 </body>
 </html>
