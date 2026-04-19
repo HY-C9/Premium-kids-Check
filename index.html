@@ -162,6 +162,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // --- 4. 🌊 ระบบ Water Canvas Animation (คงของเดิมไว้ 100%) ---
         const canvas = document.getElementById('water-canvas');
         const ctx = canvas.getContext('2d');
         let width, height;
