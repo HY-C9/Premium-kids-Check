@@ -146,11 +146,9 @@
     </div>
 
     <script type="module">
-        // --- 1. โหลด Firebase SDK ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // --- 2. ใส่ Firebase Config อันใหม่ (mombaby-check) ---
         const firebaseConfig = {
             apiKey: "AIzaSyD9SnhLqRijMJIsNpStmsPSWrXsiFxn-gs",
             authDomain: "mombaby-check.firebaseapp.com",
@@ -164,14 +162,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- 3. ตรวจสอบสิทธิ์การเข้าใช้งาน (Gatekeeper) ---
-        const currentUser = JSON.parse(localStorage.getItem('active_user'));
-        const now = new Date().getTime();
-        if (!currentUser || now > currentUser.expireAt) {
-            window.location.replace('https://hy-c9.github.io/Smart-Ai-Login/');
-        }
-
-        // --- 4. 🌊 ระบบ Water Canvas Animation (คงของเดิมไว้ 100%) ---
         const canvas = document.getElementById('water-canvas');
         const ctx = canvas.getContext('2d');
         let width, height;
